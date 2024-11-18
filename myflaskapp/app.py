@@ -163,15 +163,17 @@ def dashboard():
     result = cur.execute("SELECT * FROM articles")
 
     articles = cur.fetchall()
+
+    # close connection
+    cur.close()
+
     if result > 0:
         return render_template('dashboard.html', articles=articles)
     else:
         msg = 'No articles found'
         return render_template('dashboard.html', msg=msg)
     
-    # close connection
-    cur.close()
-
+    
 # article form class
 class ArticleForm(Form):
     title = StringField('Title', validators=[validators.Length(min=1, max=200)])
@@ -203,7 +205,76 @@ def add_article():
         return redirect(url_for('dashboard'))
     
     return render_template('add_article.html', form=form)
-       
+
+
+# edit article
+@app.route('/edit_article/<string:id>', methods=['GET', 'POST'])
+@is_logged_in
+def edit_article(id):
+    try:
+        # create cursor
+        cur = mysql.connection.cursor()
+
+        # get article by id
+        cur.execute("SELECT * FROM articles WHERE id = %s", [id])
+        article = cur.fetchone()
+
+        # Kontrollera om artikeln finns
+        if not article:
+            flash('Article not found', 'danger')
+            return redirect(url_for('dashboard'))
+
+        # get form
+        form = ArticleForm(request.form)
+
+        # populate article form fields
+        if request.method == 'GET':
+            form.title.data = article['title']
+            form.body.data = article['body']
+
+        if request.method == 'POST' and form.validate():
+            title = form.title.data
+            body = form.body.data
+
+            # execute update query
+            cur.execute(
+                "UPDATE articles SET title=%s, body=%s WHERE id=%s",
+                (title, body, id)
+            )
+            # commit
+            mysql.connection.commit()
+
+            flash('Article updated', 'success')
+            return redirect(url_for('dashboard'))
+    except Exception as e:
+        flash(f'An error occurred: {e}', 'danger')
+    finally:
+        cur.close()
+
+    return render_template('edit_article.html', form=form)
+
+
+# delete article
+@app.route('/delete_article/<string:id>', methods=['POST'])
+@is_logged_in
+def delete_article(id):
+    try:
+        # create cursor
+        cur = mysql.connection.cursor()
+
+        # execute
+        cur.execute("DELETE FROM articles WHERE id = %s", [id])
+
+        # commit
+        mysql.connection.commit()
+
+        flash('Article deleted', 'success')
+        return redirect(url_for('dashboard'))
+    except Exception as e:
+        flash(f'An error occurred: {e}', 'danger')
+        return redirect(url_for('dashboard'))
+    finally:
+        cur.close()
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'])

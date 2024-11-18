@@ -26,9 +26,17 @@
                     href="/edit_article/{{article.id}}"
                     >Edit</a
                 >
-                <a class="btn btn-danger" href="/delete_article/{{article.id}}"
-                    >Delete</a
+                <form
+                    method="POST"
+                    action="{{url_for('delete_article', id=article.id)}}"
                 >
+                    <input type="hidden" name="_method" value="DELETE" />
+                    <input
+                        type="submit"
+                        value="Delete"
+                        class="btn btn-danger"
+                    />
+                </form>
             </td>
         </tr>
         {% endfor %}
