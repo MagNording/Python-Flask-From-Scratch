@@ -66,6 +66,7 @@ class RegisterForm(Form):
     ])
     confirm = PasswordField('Confirm Password')
 
+
 # user register
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -98,6 +99,7 @@ def register():
 
         return redirect(url_for('login'))
     return render_template('register.html', form = form)
+
 
 # user login
 @app.route('/login', methods=['GET', 'POST'])
@@ -140,6 +142,7 @@ def login():
 
     return render_template('login.html')
 
+
 # check if user logged in 
 def is_logged_in(f):
     @wraps(f)
@@ -151,6 +154,7 @@ def is_logged_in(f):
             return redirect(url_for('login'))
     return wrap
 
+
 # logout
 @app.route('/logout')
 @is_logged_in
@@ -159,20 +163,18 @@ def logout():
     flash('You are now logged out', 'success')
     return redirect(url_for('login'))
 
+
 # dashboard
 @app.route('/dashboard')
 @is_logged_in
 def dashboard():
     # create cursor
-    cur = mysql.connection.cursor()
+    with mysql.connection.cursor() as cur:
 
-    # get articles
-    result = cur.execute("SELECT * FROM articles")
+        # get articles
+        result = cur.execute("SELECT * FROM articles")
 
-    articles = cur.fetchall()
-
-    # close connection
-    cur.close()
+        articles = cur.fetchall()
 
     if result > 0:
         return render_template('dashboard.html', articles=articles)
@@ -185,7 +187,8 @@ def dashboard():
 class ArticleForm(Form):
     title = StringField('Title', validators=[validators.Length(min=1, max=200)])
     body = TextAreaField('Body', validators=[validators.Length(min=6)])
-    
+
+
 # add article
 @app.route('/add_article', methods=['GET', 'POST'])
 @is_logged_in
@@ -196,21 +199,17 @@ def add_article():
         body = form.body.data
 
         # create cursor
-        cur = mysql.connection.cursor()
+        with mysql.connection.cursor() as cur:
 
-        # execute
-        cur.execute("INSERT INTO articles(title, body, author) VALUES(%s, %s, %s)", (title, body, session['username']))
+            # execute
+            cur.execute("INSERT INTO articles(title, body, author) VALUES(%s, %s, %s)", (title, body, session['username']))
 
-        # commit
-        mysql.connection.commit()
-
-        # close connection
-        cur.close()
+            # commit
+            mysql.connection.commit()
 
         flash('Article created', 'success')
 
         return redirect(url_for('dashboard'))
-    
     return render_template('add_article.html', form=form)
 
 
@@ -267,21 +266,20 @@ def edit_article(id):
 def delete_article(id):
     try:
         # create cursor
-        cur = mysql.connection.cursor()
+        with mysql.connection.cursor() as cur:
 
-        # execute
-        cur.execute("DELETE FROM articles WHERE id = %s", [id])
+            # execute
+            cur.execute("DELETE FROM articles WHERE id = %s", [id])
 
-        # commit
-        mysql.connection.commit()
+            # commit
+            mysql.connection.commit()
 
         flash('Article deleted', 'success')
         return redirect(url_for('dashboard'))
     except Exception as e:
         flash(f'An error occurred: {e}', 'danger')
         return redirect(url_for('dashboard'))
-    finally:
-        cur.close()
+    
 
 if __name__ == '__main__':
     app.run(debug=app.config['DEBUG'])
