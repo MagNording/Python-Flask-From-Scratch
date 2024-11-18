@@ -51,10 +51,13 @@ def article(id):
     cur = mysql.connection.cursor()
 
     # get article
-    result = cur.execute("SELECT * FROM articles WHERE id = %s", [id])
     article = cur.fetchone()
 
-    return render_template('article.html', article = article)
+    if article is None:
+        flash('Article not found', 'danger')
+        return redirect(url_for('dashboard'))
+
+    return render_template('article.html', article=article)
 
 # register form class
 class RegisterForm(Form):
