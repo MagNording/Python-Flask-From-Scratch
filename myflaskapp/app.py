@@ -1,6 +1,6 @@
 from functools import wraps
 from flask import Flask, render_template, flash, redirect, url_for, session, request, logging
-from data import Articles
+#from data import Articles
 from config import Config
 from flask_mysqldb import MySQL
 from wtforms import Form, StringField, TextAreaField, PasswordField, validators
@@ -12,7 +12,7 @@ app.config.from_object(Config)
 # init mysql
 mysql = MySQL(app)
 
-Articles = Articles()
+#Articles = Articles()
 
 # index
 @app.route('/')
@@ -27,12 +27,34 @@ def about():
 # articles
 @app.route('/articles')
 def articles():
-    return render_template('articles.html', articles = Articles)
+    # create cursor
+    cur = mysql.connection.cursor()
+
+    # get articles
+    result = cur.execute("SELECT * FROM articles")
+
+    articles = cur.fetchall()
+    if result > 0:
+        return render_template('articles.html', articles=articles)
+    else:
+        msg = 'No articles found'
+        return render_template('articles.html', msg=msg)
+    
+    # close connection
+    cur.close()
+    
 
 # single article
 @app.route('/article/<string:id>/')
 def article(id):
-    return render_template('article.html', id = id)
+    # create cursor
+    cur = mysql.connection.cursor()
+
+    # get article
+    result = cur.execute("SELECT * FROM articles WHERE id = %s", [id])
+    article = cur.fetchone()
+
+    return render_template('article.html', article = article)
 
 # register form class
 class RegisterForm(Form):
