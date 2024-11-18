@@ -27,37 +27,33 @@ def about():
 # articles
 @app.route('/articles')
 def articles():
-    # create cursor
-    cur = mysql.connection.cursor()
+    with mysql.connection.cursor() as cur:
+        # get articles
+        result = cur.execute("SELECT * FROM articles")
+        articles = cur.fetchall()
 
-    # get articles
-    result = cur.execute("SELECT * FROM articles")
-
-    articles = cur.fetchall()
-    if result > 0:
-        return render_template('articles.html', articles=articles)
-    else:
-        msg = 'No articles found'
-        return render_template('articles.html', msg=msg)
-    
-    # close connection
-    cur.close()
+        if result > 0:
+            return render_template('articles.html', articles=articles)
+        else:
+            msg = 'No articles found'
+            return render_template('articles.html', msg=msg)
     
 
 # single article
 @app.route('/article/<string:id>/')
 def article(id):
     # create cursor
-    cur = mysql.connection.cursor()
+    with mysql.connection.cursor() as cur:
+        # get article by id
+        cur.execute("SELECT * FROM articles WHERE id = %s", [id])
+        article = cur.fetchone()
 
-    # get article
-    article = cur.fetchone()
-
-    if article is None:
-        flash('Article not found', 'danger')
-        return redirect(url_for('dashboard'))
-
+        if article is None:
+            flash('Article not found', 'danger')
+            return redirect(url_for('dashboard'))
+        
     return render_template('article.html', article=article)
+
 
 # register form class
 class RegisterForm(Form):
@@ -81,17 +77,22 @@ def register():
         password = sha256_crypt.hash(str(form.password.data))
 
         # create cursor
-        cur = mysql.connection.cursor()
+        with mysql.connection.cursor() as cur:
 
-        # execute query
-        cur.execute("INSERT INTO users(name, email, username, password) VALUES(%s, %s, %s, %s)",
-                    (name, email, username, password))
-        
-        # commit to db
-        mysql.connection.commit()
+            # Kontrollera om användarnamn eller e-post redan finns
+            cur.execute("SELECT * FROM users WHERE email = %s OR username = %s", (email, username))
+            existing_user = cur.fetchone()
 
-        # close connection
-        cur.close()
+            if existing_user:
+                flash('User with that email or username already exists', 'danger')
+                return render_template('register.html', form=form)
+
+            # execute query
+            cur.execute("INSERT INTO users(name, email, username, password) VALUES(%s, %s, %s, %s)",
+                        (name, email, username, password))
+            
+            # commit to db
+            mysql.connection.commit()
 
         flash('You are now registered and can log in', 'success')
 
@@ -106,33 +107,36 @@ def login():
         username = request.form['username']
         password_candidate = request.form['password']
 
-        # create cursor
-        cur = mysql.connection.cursor()
-
-        # get user by username
-        result = cur.execute("SELECT * FROM users WHERE username = %s", [username])
-
-        if result > 0:
-            # get stored hash
-            data = cur.fetchone()
-            password = data['password']
-
-            # compare passwords
-            if sha256_crypt.verify(password_candidate,  password):
-                # passed
-                session['logged_in'] = True
-                session['username'] = username
-
-                flash('You are now logged in', 'success')
-                return redirect(url_for('dashboard'))
-            else:
-                error = 'Invalid login'
-                return render_template('login.html', error=error)
-            # close connection
-            cur.close()
-        else:
-            error = 'Username not found'
+        if not username or not password_candidate:
+            error = 'Both fields are required'
             return render_template('login.html', error=error)
+
+        # create cursor
+        with mysql.connection.cursor() as cur:
+
+            # get user by username
+            result = cur.execute("SELECT * FROM users WHERE username = %s", [username])
+
+            if result > 0:
+                # get stored hash
+                data = cur.fetchone()
+                password = data['password']
+
+                # compare passwords
+                if sha256_crypt.verify(password_candidate,  password):
+                    # passed
+                    session['logged_in'] = True
+                    session['username'] = username
+
+                    flash('You are now logged in', 'success')
+                    return redirect(url_for('dashboard'))
+                else:
+                    error = 'Invalid username or password'
+                    return render_template('login.html', error=error)
+                
+            else:
+                error = 'Invalid username or password'
+                return render_template('login.html', error=error)
 
     return render_template('login.html')
 
