@@ -1,6 +1,6 @@
 class Config:
     # Flask Settings
-    SECRET_KEY = 'secret123'
+    SECRET_KEY = ''
     PERMANENT_SESSION_LIFETIME = 1800  # Timeout i sekunder (30 min)
     
     # MySQL Settings
